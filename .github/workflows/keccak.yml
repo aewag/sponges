@@ -14,7 +14,7 @@ defaults:
     working-directory: keccak
 
 env:
-  MSRV: 1.41.0
+  MSRV: 1.50.0
   RUSTFLAGS: "-Dwarnings"
   CARGO_INCREMENTAL: 0
 
@@ -101,3 +101,38 @@ jobs:
           package: ${{ github.workflow }}
           target: ${{ matrix.target }}
           features: ${{ matrix.features }}
+
+  # Cross-compiled tests
+  cross2:
+    needs: set-msrv
+    strategy:
+      matrix:
+        rust:
+          - ${{needs.set-msrv.outputs.msrv}}
+          - stable
+        target:
+          - i686-unknown-linux-gnu
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - mips-unknown-linux-gnu
+        features:
+          - no_unroll
+          - 'NO_FEATURE'
+
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+      # Cross mounts only current package, i.e. by default it ignores workspace's Cargo.toml
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: test
+          args: --target ${{ matrix.target }}
